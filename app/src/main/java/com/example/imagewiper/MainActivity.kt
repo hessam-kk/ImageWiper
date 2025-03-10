@@ -16,11 +16,24 @@ import android.os.Build
 import android.util.Log
 import android.widget.Toast
 
+
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.RenderEffect
+import android.graphics.Shader
+import android.graphics.drawable.GradientDrawable
+import androidx.palette.graphics.Palette
+import android.graphics.drawable.BitmapDrawable
+
+
+import android.view.View
+
 class MainActivity : AppCompatActivity() {
 
 
     private lateinit var imageView: ImageView
     private lateinit var nextButton: Button
+    private lateinit var rootLayout: View
 
     private var imageUris: List<Uri> = listOf()
     private var currentIndex = 0
@@ -30,13 +43,14 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         imageView = findViewById(R.id.imageView)
         nextButton = findViewById(R.id.nextButton)
+        rootLayout =
+            findViewById(R.id.backgroundView)  // Ensure this ID exists in activity_main.xml
 
         // Use the correct permission based on API level
         val readPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -46,7 +60,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (ContextCompat.checkSelfPermission(this, readPermission)
-            != PackageManager.PERMISSION_GRANTED) {
+            != PackageManager.PERMISSION_GRANTED
+        ) {
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(readPermission),
@@ -72,7 +87,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Check if permission is granted (this should normally pass since we checked in onCreate)
-        if (ContextCompat.checkSelfPermission(this, readPermission) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                readPermission
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             Log.e("MainActivity", "Permission not granted: $readPermission")
             Toast.makeText(this, "Permission not granted", Toast.LENGTH_SHORT).show()
             return
@@ -95,7 +114,10 @@ class MainActivity : AppCompatActivity() {
             )
 
             if (cursor == null) {
-                Log.e("MainActivity", "Query returned null. Check permissions or if gallery is empty.")
+                Log.e(
+                    "MainActivity",
+                    "Query returned null. Check permissions or if gallery is empty."
+                )
                 Toast.makeText(this, "Could not access gallery", Toast.LENGTH_SHORT).show()
                 return
             }
@@ -137,10 +159,10 @@ class MainActivity : AppCompatActivity() {
         if (imageUris.isNotEmpty()) {
             currentIndex = (currentIndex + 1) % imageUris.size
             imageView.setImageURI(imageUris[currentIndex])
-        }
-        else {
+        } else {
             Log.e("MainActivity", "imageUris is Empty.")
         }
+        applyDynamicBackground()
     }
 
     private fun processCurrentImage() {
@@ -155,8 +177,53 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_READ_EXTERNAL &&
             grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        ) {
             loadImagesFromGallery()
         }
     }
-}
+
+
+    private fun updateBackgroundWithGradientBlur(bitmap: Bitmap, containerView: View) {
+        // Generate a Palette asynchronously
+        Palette.from(bitmap).generate { palette ->
+            // Use the dominant color as the start of the gradient (fallback to black if null)
+            val dominantColor = palette?.getDominantColor(Color.BLACK) ?: Color.BLACK
+            // Optionally, you can create a darker variant for the gradient end
+            val darkerColor = manipulateColor(dominantColor, 0.8f)
+
+            // Create a vertical gradient from the dominant color to the darker color (or transparent)
+            val gradientDrawable = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(dominantColor, darkerColor)
+            )
+
+            // Set the gradient as the background of your container (could be the root layout or card)
+            containerView.background = gradientDrawable
+
+            // Optionally apply a blur effect if running on API 31 or above
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val blurEffect = RenderEffect.createBlurEffect(20f, 20f, Shader.TileMode.CLAMP)
+                containerView.setRenderEffect(blurEffect)
+            }
+        }
+    }
+
+        // Utility function to darken a color
+        private fun manipulateColor(color: Int, factor: Float): Int {
+            val a = Color.alpha(color)
+            val r = (Color.red(color) * factor).toInt().coerceAtMost(255)
+            val g = (Color.green(color) * factor).toInt().coerceAtMost(255)
+            val b = (Color.blue(color) * factor).toInt().coerceAtMost(255)
+            return Color.argb(a, r, g, b)
+        }
+
+            private fun applyDynamicBackground() {
+                val drawable = imageView.drawable
+                if (drawable is BitmapDrawable) {
+                    val bitmap = drawable.bitmap
+                    // Pass the initialized backgroundView instead of rootLayout
+                    updateBackgroundWithGradientBlur(bitmap, rootLayout)
+                }
+            }
+        }
