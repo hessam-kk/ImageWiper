@@ -100,9 +100,11 @@ class MainActivity : AppCompatActivity() {
                 // Clear the last deleted info and hide the undo button
                 lastDeletedUri = null
                 lastDeletedIndex = -1
-                undoButton.visibility = View.GONE
+                undoButton.visibility = View.VISIBLE
                 showPreviousImage()
 
+            } else {
+                Toast.makeText(this, "Nothing to delete", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -201,10 +203,6 @@ class MainActivity : AppCompatActivity() {
         applyDynamicBackground()
     }
 
-    private fun processCurrentImage() {
-        Log.i("MainActivity", "Processing current image.")
-        // TODO: Add image processing functionality here
-    }
 
     private fun applyDynamicBackground() {
         val drawable = imageView.drawable
@@ -278,8 +276,8 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     // Update the undo button text and show it
-                    undoButton.text = "Undo Deleted Image"
-                    undoButton.visibility = View.VISIBLE
+//                    undoButton.text = "Undo Deleted Image"
+//                    undoButton.visibility = View.VISIBLE
                 }
                 // Reset translation for the next interaction
                 imageView.translationX = 0f
@@ -287,7 +285,7 @@ class MainActivity : AppCompatActivity() {
             .start()
 
         // Placeholder: Add functionality for left swipe here
-        Toast.makeText(this, "Swiped left", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Image Deleted", Toast.LENGTH_SHORT).show()
     }
 
 
@@ -303,33 +301,33 @@ class MainActivity : AppCompatActivity() {
             }
             .start()
         // Placeholder: Add functionality for right swipe here
-        Toast.makeText(this, "Swiped right", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Keeping Image", Toast.LENGTH_SHORT).show()
     }
 
-    private fun deleteCurrentImage() {
-        if (imageUris.isNotEmpty()) {
-            val currentUri = imageUris[currentIndex]
-            try {
-                val rowsDeleted = contentResolver.delete(currentUri, null, null)
-                if (rowsDeleted > 0) {
-                    Toast.makeText(this, "Image deleted", Toast.LENGTH_SHORT).show()
-                    // Remove the deleted image from your list
-                    val mutableList = imageUris.toMutableList()
-                    mutableList.removeAt(currentIndex)
-                    imageUris = mutableList.toList()
-                    // Adjust the index if needed
-                    if (currentIndex >= imageUris.size && imageUris.isNotEmpty()) {
-                        currentIndex = 0
-                    }
-                } else {
-                    Toast.makeText(this, "Unable to delete image", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error deleting image: ${e.message}")
-                Toast.makeText(this, "Error deleting image", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
+//    private fun deleteCurrentImage() {
+//        if (imageUris.isNotEmpty()) {
+//            val currentUri = imageUris[currentIndex]
+//            try {
+//                val rowsDeleted = contentResolver.delete(currentUri, null, null)
+//                if (rowsDeleted > 0) {
+//                    Toast.makeText(this, "Image deleted", Toast.LENGTH_SHORT).show()
+//                    // Remove the deleted image from your list
+//                    val mutableList = imageUris.toMutableList()
+//                    mutableList.removeAt(currentIndex)
+//                    imageUris = mutableList.toList()
+//                    // Adjust the index if needed
+//                    if (currentIndex >= imageUris.size && imageUris.isNotEmpty()) {
+//                        currentIndex = 0
+//                    }
+//                } else {
+//                    Toast.makeText(this, "Unable to delete image", Toast.LENGTH_SHORT).show()
+//                }
+//            } catch (e: Exception) {
+//                Log.e("MainActivity", "Error deleting image: ${e.message}")
+//                Toast.makeText(this, "Error deleting image", Toast.LENGTH_SHORT).show()
+//            }
+//        }
+//    }
 
     // Top-level functions for background update remain unchanged
     private fun updateBackgroundWithGradientBlur(bitmap: Bitmap, containerView: View) {
