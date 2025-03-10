@@ -29,12 +29,15 @@ import androidx.palette.graphics.Palette
 class MainActivity : AppCompatActivity() {
 
     private lateinit var imageView: ImageView
-    private lateinit var nextButton: Button
+    private lateinit var undoButton: Button
     private lateinit var rootLayout: View
     private lateinit var gestureDetector: GestureDetectorCompat
 
     private var imageUris: List<Uri> = listOf()
     private var currentIndex = 0
+
+    private var lastDeletedUri: Uri? = null
+    private var lastDeletedIndex: Int = -1
 
     companion object {
         private const val REQUEST_CODE_READ_EXTERNAL = 100
@@ -47,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         imageView = findViewById(R.id.imageView)
-        nextButton = findViewById(R.id.nextButton)
+        undoButton = findViewById(R.id.undoButton)
         // Ensure the XML layout contains a view with id "backgroundView"
         rootLayout = findViewById(R.id.backgroundView)
 
@@ -68,7 +71,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (ContextCompat.checkSelfPermission(this, readPermission)
-            != PackageManager.PERMISSION_GRANTED) {
+            != PackageManager.PERMISSION_GRANTED
+        ) {
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(readPermission),
@@ -78,10 +82,39 @@ class MainActivity : AppCompatActivity() {
             loadImagesFromGallery()
         }
 
-        nextButton.setOnClickListener {
-            processCurrentImage()
-            showNextImage()
+        undoButton.setOnClickListener {
+            if (lastDeletedUri != null) {
+                // Undo deletion: reinsert the deleted image into the list
+                val mutableList = imageUris.toMutableList()
+                if (lastDeletedIndex < 0 || lastDeletedIndex > mutableList.size) {
+                    // If index is invalid, append the image at the end
+                    mutableList.add(lastDeletedUri!!)
+                    currentIndex = mutableList.size - 1
+                } else {
+                    mutableList.add(lastDeletedIndex, lastDeletedUri!!)
+                    currentIndex = lastDeletedIndex
+                }
+                imageUris = mutableList.toList()
+                imageView.setImageURI(lastDeletedUri)
+                Toast.makeText(this, "Image restored", Toast.LENGTH_SHORT).show()
+                // Clear the last deleted info and hide the undo button
+                lastDeletedUri = null
+                lastDeletedIndex = -1
+                undoButton.visibility = View.GONE
+                showPreviousImage()
+
+            }
         }
+    }
+
+    private fun showPreviousImage() {
+        if (imageUris.isNotEmpty()) {
+            currentIndex = if (currentIndex - 1 < 0) imageUris.size - 1 else currentIndex - 1
+            imageView.setImageURI(imageUris[currentIndex])
+        } else {
+            Log.e("MainActivity", "No images found in gallery.")
+        }
+        applyDynamicBackground()
     }
 
     private fun loadImagesFromGallery() {
@@ -91,7 +124,11 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
 
-        if (ContextCompat.checkSelfPermission(this, readPermission) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                readPermission
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             Log.e("MainActivity", "Permission not granted: $readPermission")
             Toast.makeText(this, "Permission not granted", Toast.LENGTH_SHORT).show()
             return
@@ -114,7 +151,10 @@ class MainActivity : AppCompatActivity() {
             )
 
             if (cursor == null) {
-                Log.e("MainActivity", "Query returned null. Check permissions or if gallery is empty.")
+                Log.e(
+                    "MainActivity",
+                    "Query returned null. Check permissions or if gallery is empty."
+                )
                 Toast.makeText(this, "Could not access gallery", Toast.LENGTH_SHORT).show()
                 return
             }
@@ -180,7 +220,8 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_READ_EXTERNAL &&
             grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        ) {
             loadImagesFromGallery()
         }
     }
@@ -212,22 +253,43 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-
     private fun onSwipeLeft() {
-        // Animate the image sliding to the left
         imageView.animate()
             .translationX(-imageView.width.toFloat())
             .setDuration(300)
             .withEndAction {
-                // After animation completes, reset translation and load the next image
+                if (imageUris.isNotEmpty()) {
+                    // Save the current image info for undo
+                    lastDeletedUri = imageUris[currentIndex]
+                    lastDeletedIndex = currentIndex
+
+                    // Remove the image from the list (simulate deletion)
+                    val mutableList = imageUris.toMutableList()
+                    mutableList.removeAt(currentIndex)
+                    imageUris = mutableList.toList()
+
+                    // Show the next image, if available; otherwise clear the ImageView
+                    if (imageUris.isNotEmpty()) {
+                        // Adjust currentIndex if necessary
+                        currentIndex %= imageUris.size
+                        imageView.setImageURI(imageUris[currentIndex])
+                    } else {
+                        imageView.setImageDrawable(null)
+                    }
+
+                    // Update the undo button text and show it
+                    undoButton.text = "Undo Deleted Image"
+                    undoButton.visibility = View.VISIBLE
+                }
+                // Reset translation for the next interaction
                 imageView.translationX = 0f
-                showNextImage()
             }
             .start()
 
         // Placeholder: Add functionality for left swipe here
         Toast.makeText(this, "Swiped left", Toast.LENGTH_SHORT).show()
     }
+
 
     private fun onSwipeRight() {
         // Animate the image sliding to the right
@@ -243,30 +305,55 @@ class MainActivity : AppCompatActivity() {
         // Placeholder: Add functionality for right swipe here
         Toast.makeText(this, "Swiped right", Toast.LENGTH_SHORT).show()
     }
-}
 
-// Top-level functions for background update remain unchanged
-private fun updateBackgroundWithGradientBlur(bitmap: Bitmap, containerView: View) {
-    Palette.from(bitmap).generate { palette ->
-        val dominantColor = palette?.getDominantColor(Color.BLACK) ?: Color.BLACK
-        val darkerColor = manipulateColor(dominantColor, 0.8f)
-        val gradientDrawable = GradientDrawable(
-            GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf(dominantColor, darkerColor)
-        )
-        containerView.background = gradientDrawable
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val blurEffect = RenderEffect.createBlurEffect(20f, 20f, Shader.TileMode.CLAMP)
-            containerView.setRenderEffect(blurEffect)
+    private fun deleteCurrentImage() {
+        if (imageUris.isNotEmpty()) {
+            val currentUri = imageUris[currentIndex]
+            try {
+                val rowsDeleted = contentResolver.delete(currentUri, null, null)
+                if (rowsDeleted > 0) {
+                    Toast.makeText(this, "Image deleted", Toast.LENGTH_SHORT).show()
+                    // Remove the deleted image from your list
+                    val mutableList = imageUris.toMutableList()
+                    mutableList.removeAt(currentIndex)
+                    imageUris = mutableList.toList()
+                    // Adjust the index if needed
+                    if (currentIndex >= imageUris.size && imageUris.isNotEmpty()) {
+                        currentIndex = 0
+                    }
+                } else {
+                    Toast.makeText(this, "Unable to delete image", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error deleting image: ${e.message}")
+                Toast.makeText(this, "Error deleting image", Toast.LENGTH_SHORT).show()
+            }
         }
     }
-}
 
-private fun manipulateColor(color: Int, factor: Float): Int {
-    val a = Color.alpha(color)
-    val r = (Color.red(color) * factor).toInt().coerceAtMost(255)
-    val g = (Color.green(color) * factor).toInt().coerceAtMost(255)
-    val b = (Color.blue(color) * factor).toInt().coerceAtMost(255)
-    return Color.argb(a, r, g, b)
+    // Top-level functions for background update remain unchanged
+    private fun updateBackgroundWithGradientBlur(bitmap: Bitmap, containerView: View) {
+        Palette.from(bitmap).generate { palette ->
+            val dominantColor = palette?.getDominantColor(Color.BLACK) ?: Color.BLACK
+            val darkerColor = manipulateColor(dominantColor, 0.8f)
+            val gradientDrawable = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(dominantColor, darkerColor)
+            )
+            containerView.background = gradientDrawable
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val blurEffect = RenderEffect.createBlurEffect(20f, 20f, Shader.TileMode.CLAMP)
+                containerView.setRenderEffect(blurEffect)
+            }
+        }
+    }
+
+    private fun manipulateColor(color: Int, factor: Float): Int {
+        val a = Color.alpha(color)
+        val r = (Color.red(color) * factor).toInt().coerceAtMost(255)
+        val g = (Color.green(color) * factor).toInt().coerceAtMost(255)
+        val b = (Color.blue(color) * factor).toInt().coerceAtMost(255)
+        return Color.argb(a, r, g, b)
+    }
 }

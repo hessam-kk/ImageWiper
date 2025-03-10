@@ -39,10 +39,10 @@
 
     <!-- Next image button fixed at the bottom center -->
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/nextButton"
+        android:id="@+id/undoButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Next Image"
+        android:text="Undo Delete"
         app:cornerRadius="8dp"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="24dp"
