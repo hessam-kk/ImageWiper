@@ -1,9 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.ImageWiper" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    <style name="Base.Theme.PhotoSweep" parent="Theme.Material3.DayNight.NoActionBar">
     </style>
-
-    <style name="Theme.ImageWiper" parent="Base.Theme.ImageWiper" />
+    <style name="Theme.PhotoSweep" parent="Base.Theme.PhotoSweep" />
 </resources>
