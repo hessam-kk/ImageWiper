@@ -1,6 +1,6 @@
 # PhotoSweep
 
-A fast, minimal Android app for cleaning up your photo gallery. Swipe through photos month by month — swipe right to trash, swipe left to keep.
+A fast, minimal Android app for cleaning up your photo gallery very fast. Swipe through photos month by month — swipe right to trash, swipe left to keep.
 
 ## Features
 
@@ -11,13 +11,7 @@ A fast, minimal Android app for cleaning up your photo gallery. Swipe through ph
 - **Undo support** — Snackbar with undo action restores trashed photos
 - **Full-screen immersive** — No status bar, distraction-free experience
 - **Dark theme** — Photo-forward dark aesthetic with accent highlights
-
-## Screenshots
-
-| Main Screen | Swipe Screen |
-|-------------|--------------|
-| Dark grid with thumbnail previews, stats cards, and month completion tracking | Full-screen photo with swipe gestures and visual indicators |
-
+ 
 ## Requirements
 
 - Android 7.0+ (API 24)
@@ -53,8 +47,8 @@ GitHub Actions workflow (`.github/workflows/build.yml`) builds both debug and re
 
 1. App loads all photos from `MediaStore`, grouped by month
 2. Tap a month to start reviewing — choose "From beginning" or "Resume"
-3. Swipe right to trash (moves file to `.PhotoSweepTrash/`), swipe left to keep
-4. Back button lets you revisit the previous photo
+3. Swipe right to trash, swipe left to keep
+4. Back button lets you revisit the previous photos
 5. Progress is saved automatically; return anytime to continue
 
 ## License
