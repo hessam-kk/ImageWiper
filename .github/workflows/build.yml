@@ -38,7 +38,12 @@ jobs:
 
       - name: Get version name
         id: version
-        run: echo "name=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')" >> "$GITHUB_OUTPUT"
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "name=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Rename APKs
         run: |
