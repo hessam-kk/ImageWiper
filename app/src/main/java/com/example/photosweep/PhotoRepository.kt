@@ -7,6 +7,9 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -110,6 +113,7 @@ object PhotoRepository {
 
         return try {
             if (src != null && src.exists()) {
+                val fileSize = src.length()
                 var moved = src.renameTo(dest)
                 Log.d(TAG, "renameTo result=$moved dest=${dest.absolutePath}")
                 if (!moved) {
@@ -123,7 +127,10 @@ object PhotoRepository {
                     Log.d(TAG, "stream copy + delete done, dest exists=${dest.exists()}")
                 }
 
-                // Force MediaStore to rescan the parent directory so the moved file disappears
+                CoroutineScope(Dispatchers.IO).launch {
+                    MonthProgressStore.recordTrash(context, fileSize)
+                }
+
                 val parentDir = src.parentFile
                 if (parentDir != null) {
                     MediaScannerConnection.scanFile(
@@ -148,6 +155,7 @@ object PhotoRepository {
         val trashFile = File(getTrashDir(), "${photo.id}_${photo.displayName}")
         if (!trashFile.exists()) return false
 
+        val fileSize = trashFile.length()
         val destDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
         val dest = File(destDir, photo.displayName)
 
@@ -159,6 +167,9 @@ object PhotoRepository {
                     }
                 }
                 trashFile.delete()
+            }
+            CoroutineScope(Dispatchers.IO).launch {
+                MonthProgressStore.recordRestore(context, fileSize)
             }
             MediaScannerConnection.scanFile(context, arrayOf(dest.absolutePath), null, null)
             true

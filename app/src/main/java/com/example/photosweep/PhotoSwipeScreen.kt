@@ -2,7 +2,7 @@ package com.example.photosweep
 
 import android.os.Build
 import android.os.Environment
-import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -18,11 +18,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -34,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -52,11 +55,17 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+private sealed class SnackbarEvent {
+    data class Trashed(val photo: PhotoItem) : SnackbarEvent()
+    data class Error(val message: String) : SnackbarEvent()
+}
+
 @Composable
 fun PhotoSwipeScreen(
     monthGroup: MonthGroup,
     startFromIndex: Int,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -65,6 +74,12 @@ fun PhotoSwipeScreen(
     var currentIndex by remember { mutableIntStateOf(startFromIndex) }
     val photos = monthGroup.photos
     val totalPhotos = photos.size
+
+    var snackbarEvent by remember { mutableStateOf<SnackbarEvent?>(null) }
+
+    BackHandler {
+        onBack()
+    }
 
     val manageStorageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -80,6 +95,31 @@ fun PhotoSwipeScreen(
         if (currentIndex >= totalPhotos && totalPhotos > 0) {
             MonthProgressStore.markMonthCompleted(context, monthGroup.yearMonth)
             onComplete()
+        }
+    }
+
+    LaunchedEffect(snackbarEvent) {
+        snackbarEvent?.let { event ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            when (event) {
+                is SnackbarEvent.Trashed -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "Photo trashed",
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Short
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        PhotoRepository.restorePhoto(context, event.photo)
+                    }
+                }
+                is SnackbarEvent.Error -> {
+                    snackbarHostState.showSnackbar(
+                        message = event.message,
+                        duration = SnackbarDuration.Short
+                    )
+                }
+            }
+            snackbarEvent = null
         }
     }
 
@@ -144,25 +184,17 @@ fun PhotoSwipeScreen(
                                                 android.net.Uri.parse("package:${context.packageName}")
                                             )
                                             manageStorageLauncher.launch(intent)
-                                            snackbarHostState.showSnackbar(
-                                                message = "Grant \"All files access\" then swipe again",
-                                                duration = SnackbarDuration.Short
+                                            snackbarEvent = SnackbarEvent.Error(
+                                                "Grant \"All files access\" then swipe again"
                                             )
                                             return@launch
                                         }
 
                                         val moved = PhotoRepository.trashPhoto(context, photoToDelete)
                                         if (moved) {
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = "Photo trashed",
-                                                actionLabel = "Undo",
-                                                duration = SnackbarDuration.Short
-                                            )
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                PhotoRepository.restorePhoto(context, photoToDelete)
-                                            }
+                                            snackbarEvent = SnackbarEvent.Trashed(photoToDelete)
                                         } else {
-                                            Toast.makeText(context, "Failed to trash photo", Toast.LENGTH_SHORT).show()
+                                            snackbarEvent = SnackbarEvent.Error("Failed to trash photo")
                                         }
                                     }
                                 }
@@ -192,7 +224,7 @@ fun PhotoSwipeScreen(
                     model = currentPhoto.uri,
                     contentDescription = currentPhoto.displayName,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Fit
                 )
 
                 if (offsetX > 100f) {
@@ -242,6 +274,30 @@ fun PhotoSwipeScreen(
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                     color = Color.White,
                     fontSize = 14.sp
+                )
+            }
+        }
+
+        // Back button — top left
+        if (currentIndex > 0) {
+            IconButton(
+                onClick = {
+                    currentIndex--
+                    offsetX = 0f
+                    offsetY = 0f
+                },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.4f))
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Go back",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
