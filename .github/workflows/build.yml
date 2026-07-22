@@ -36,23 +36,33 @@ jobs:
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
+      - name: Get version name
+        id: version
+        run: echo "name=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')" >> "$GITHUB_OUTPUT"
+
+      - name: Rename APKs
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk PhotoSweep-v${{ steps.version.outputs.name }}-debug.apk
+          cp app/build/outputs/apk/release/app-release.apk PhotoSweep-v${{ steps.version.outputs.name }}-release.apk
+
       - name: Upload Debug Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PhotoSweep-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: PhotoSweep-v${{ steps.version.outputs.name }}-debug
+          path: PhotoSweep-v${{ steps.version.outputs.name }}-debug.apk
 
       - name: Upload Release Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PhotoSweep-release
-          path: app/build/outputs/apk/release/app-release.apk
+          name: PhotoSweep-v${{ steps.version.outputs.name }}-release
+          path: PhotoSweep-v${{ steps.version.outputs.name }}-release.apk
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          name: PhotoSweep ${{ steps.version.outputs.name }}
           files: |
-            app/build/outputs/apk/debug/app-debug.apk
-            app/build/outputs/apk/release/app-release.apk
+            PhotoSweep-v${{ steps.version.outputs.name }}-debug.apk
+            PhotoSweep-v${{ steps.version.outputs.name }}-release.apk
           generate_release_notes: true
